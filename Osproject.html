@@ -1201,4 +1201,203 @@
                     }, 1500);
                 }
             }
+            
+            generateCallStack() {
+                // Simulate a call stack for the allocation
+                const stack = [];
+                const functions = [
+                    'main', 'initSystem', 'createObject', 'allocateResource',
+                    'processData', 'handleRequest', 'executeTask', 'runOperation'
+                ];
+                
+                // Generate 3-5 stack frames
+                const count = 3 + Math.floor(Math.random() * 3);
+                for (let i = 0; i < count; i++) {
+                    const fn = functions[Math.floor(Math.random() * functions.length)];
+                    stack.push(`${fn} (file.c:${Math.floor(Math.random() * 100) + 1})`);
+                }
+                
+                return stack;
+            }
+            
+            adjustZoom(amount) {
+                this.zoomLevel = Math.max(0.5, Math.min(2, this.zoomLevel + amount));
+                this.updateUI();
+            }
+            
+            resetZoom() {
+                this.zoomLevel = 1;
+                this.updateUI();
+            }
+            
+            updateUI() {
+                // Update memory visualization
+                const heapElement = document.getElementById('memoryHeap');
+                heapElement.innerHTML = '';
+                
+                const heapWidth = heapElement.clientWidth;
+                const scale = (heapWidth / this.heapSize) * this.zoomLevel;
+                
+                this.heap.forEach(block => {
+                    const blockElement = document.createElement('div');
+                    blockElement.className = `memory-block ${block.status}`;
+                    blockElement.style.left = `${block.address * scale}px`;
+                    blockElement.style.width = `${block.size * scale}px`;
+                    blockElement.style.height = `${heapElement.clientHeight}px`;
+                    
+                    if (block.id) {
+                        blockElement.dataset.blockId = block.id;
+                    } else {
+                        blockElement.dataset.address = block.address;
+                    }
+                    
+                    const infoElement = document.createElement('div');
+                    infoElement.className = 'block-label';
+                    infoElement.textContent = `${block.size}b`;
+                    blockElement.appendChild(infoElement);
+                    
+                    heapElement.appendChild(blockElement);
+                });
+                
+                // Update stats
+                const usedMemory = this.heap
+                    .filter(b => b.status === 'allocated')
+                    .reduce((sum, b) => sum + b.size, 0);
+                
+                const freeMemory = this.heapSize - usedMemory;
+                const usedPercent = (usedMemory / this.heapSize) * 100;
+                const fragmentation = this.calculateFragmentation();
+                
+                document.getElementById('totalMemory').textContent = this.heapSize;
+                document.getElementById('usedMemory').textContent = usedMemory;
+                document.getElementById('freeMemory').textContent = freeMemory;
+                document.getElementById('usedPercent').textContent = usedPercent.toFixed(1);
+                document.getElementById('freePercent').textContent = (100 - usedPercent).toFixed(1);
+                document.getElementById('fragmentation').textContent = fragmentation.toFixed(1);
+                document.getElementById('allocCount').textContent = this.allocCount;
+                document.getElementById('activeAllocs').textContent = Object.keys(this.allocations).length;
+                document.getElementById('blockCount').textContent = this.heap.length;
+                document.getElementById('freeBlocks').textContent = this.heap.filter(b => b.status === 'free').length;
+                
+                // Update progress bars
+                document.getElementById('usageProgress').style.width = `${usedPercent}%`;
+                document.getElementById('fragmentationProgress').style.width = `${fragmentation}%`;
+                
+                // Update fragmentation description
+                let fragDescription = 'No fragmentation';
+                if (fragmentation > 30) {
+                    fragDescription = 'High fragmentation';
+                } else if (fragmentation > 10) {
+                    fragDescription = 'Moderate fragmentation';
+                } else if (fragmentation > 0) {
+                    fragDescription = 'Low fragmentation';
+                }
+                document.getElementById('fragmentationDetail').textContent = fragDescription;
+                
+                // Update block select dropdown
+                const blockSelect = document.getElementById('blockSelect');
+                blockSelect.innerHTML = Object.keys(this.allocations).length > 0 ? 
+                    '<option value="">Select a block to free</option>' : 
+                    '<option value="">No blocks allocated</option>';
+                
+                Object.keys(this.allocations).forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `Block ${id} (${this.allocations[id].size} bytes)`;
+                    blockSelect.appendChild(option);
+                });
+                
+                blockSelect.disabled = Object.keys(this.allocations).length === 0;
+                document.getElementById('freeBtn').disabled = Object.keys(this.allocations).length === 0;
+                
+                // Update block list view
+                const blockList = document.getElementById('blockList');
+                if (this.heap.length === 1 && this.heap[0].status === 'free') {
+                    blockList.innerHTML = '<p>No memory blocks allocated yet.</p>';
+                } else {
+                    blockList.innerHTML = '';
+                    const table = document.createElement('table');
+                    table.style.width = '100%';
+                    table.style.borderCollapse = 'collapse';
+                    
+                    // Create header
+                    const header = table.createTHead();
+                    const headerRow = header.insertRow();
+                    ['Address', 'Size', 'Status', 'ID'].forEach(text => {
+                        const th = document.createElement('th');
+                        th.textContent = text;
+                        th.style.textAlign = 'left';
+                        th.style.padding = '8px';
+                        th.style.borderBottom = '1px solid #ddd';
+                        headerRow.appendChild(th);
+                    });
+                    
+                    // Create body
+                    const body = table.createTBody();
+                    this.heap.forEach(block => {
+                        const row = body.insertRow();
+                        row.style.borderBottom = '1px solid #eee';
+                        
+                        const addressCell = row.insertCell();
+                        addressCell.textContent = `0x${block.address.toString(16).padStart(4, '0')}`;
+                        addressCell.style.padding = '8px';
+                        
+                        const sizeCell = row.insertCell();
+                        sizeCell.textContent = `${block.size} bytes`;
+                        
+                        const statusCell = row.insertCell();
+                        statusCell.textContent = block.status.charAt(0).toUpperCase() + block.status.slice(1);
+                        statusCell.style.color = block.status === 'allocated' ? 'var(--primary)' : 
+                                              block.status === 'free' ? 'var(--success)' : 'var(--danger)';
+                        
+                        const idCell = row.insertCell();
+                        idCell.textContent = block.id || 'N/A';
+                        
+                        // Add click handler to select block
+                        row.addEventListener('click', () => this.selectBlock(block));
+                        row.style.cursor = 'pointer';
+                        
+                        // Highlight on hover
+                        row.addEventListener('mouseenter', () => {
+                            row.style.backgroundColor = '#f8f9fa';
+                        });
+                        row.addEventListener('mouseleave', () => {
+                            row.style.backgroundColor = '';
+                        });
+                    });
+                    
+                    blockList.appendChild(table);
+                }
+            }
+            
+            logOperation(message, type = 'info') {
+                const logElement = document.getElementById('operationLog');
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                
+                const timeSpan = document.createElement('div');
+                timeSpan.className = 'log-time';
+                timeSpan.textContent = new Date().toLocaleTimeString();
+                
+                const messageSpan = document.createElement('div');
+                messageSpan.className = `log-message log-${type}`;
+                messageSpan.textContent = message;
+                
+                logEntry.appendChild(timeSpan);
+                logEntry.appendChild(messageSpan);
+                logElement.prepend(logEntry);
+                
+                // Auto-scroll to top
+                logElement.scrollTop = 0;
+            }
+            
+            showErrorToast(message) {
+                const toast = document.createElement('div');
+                toast.style.position = 'fixed';
+                toast.style.bottom = '20px';
+                toast.style.right = '20px';
+                toast.style.backgroundColor = 'var(--danger)';
+                toast.style.color = 'white';
+                toast.style.padding = '12px 24px';
+
 
