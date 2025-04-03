@@ -749,4 +749,257 @@
                         <div class="log-time">12:00:00</div>
                         <div class="log-message log-init">Heap initialized with 1024 bytes</div>
                     </div>
-        
+                </div>
+            </div>
+            
+            <div class="tooltip" id="blockTooltip"></div>
+        </main>
+    </div>
+
+    <script>
+        // Memory management system with enhanced features
+        class MemorySystem {
+            constructor() {
+                this.heap = [];
+                this.heapSize = 1024;
+                this.allocations = {};
+                this.allocCount = 0;
+                this.freeCount = 0;
+                this.allocator = 'firstFit';
+                this.zoomLevel = 1;
+                this.selectedBlock = null;
+                this.demos = {
+                    basic: this.createBasicDemo.bind(this),
+                    fragmentation: this.createFragmentationDemo.bind(this),
+                    strategies: this.createStrategiesDemo.bind(this)
+                };
+                
+                this.initEventListeners();
+                this.initHeap(this.heapSize);
+            }
+            
+            initEventListeners() {
+                document.getElementById('initHeap').addEventListener('click', () => {
+                    const size = parseInt(document.getElementById('heapSize').value);
+                    if (size >= 64 && size <= 8192) {
+                        this.initHeap(size);
+                    } else {
+                        this.showErrorToast('Heap size must be between 64 and 8192 bytes');
+                    }
+                });
+                
+                document.getElementById('mallocBtn').addEventListener('click', () => {
+                    const size = parseInt(document.getElementById('allocSize').value);
+                    if (size > 0) {
+                        const blockId = this.malloc(size);
+                        if (blockId) {
+                            this.highlightBlock(blockId);
+                        }
+                    } else {
+                        this.showErrorToast('Allocation size must be greater than 0');
+                    }
+                });
+                
+                document.getElementById('freeBtn').addEventListener('click', () => {
+                    const blockId = document.getElementById('blockSelect').value;
+                    if (blockId) {
+                        this.free(blockId);
+                    }
+                });
+                
+                document.getElementById('allocator').addEventListener('change', (e) => {
+                    this.allocator = e.target.value;
+                    this.logOperation(`Switched to ${this.getAllocatorName()} allocation strategy`, 'info');
+                });
+                
+                // Quick allocation buttons
+                document.getElementById('quickAlloc64').addEventListener('click', () => this.malloc(64));
+                document.getElementById('quickAlloc128').addEventListener('click', () => this.malloc(128));
+                document.getElementById('quickAlloc256').addEventListener('click', () => this.malloc(256));
+                document.getElementById('quickAlloc512').addEventListener('click', () => this.malloc(512));
+                
+                // Fragment/Defragment buttons
+                document.getElementById('fragmentMemory').addEventListener('click', () => this.fragmentMemory());
+                document.getElementById('defragmentMemory').addEventListener('click', () => this.defragmentMemory());
+                
+                // Demo system
+                document.getElementById('runDemo').addEventListener('click', () => {
+                    const demoType = document.querySelector('input[name="demo"]:checked').value;
+                    this.runDemo(demoType);
+                });
+                
+                // Zoom controls
+                document.getElementById('zoomIn').addEventListener('click', () => this.adjustZoom(0.1));
+                document.getElementById('zoomOut').addEventListener('click', () => this.adjustZoom(-0.1));
+                document.getElementById('resetView').addEventListener('click', () => this.resetZoom());
+                
+                // Clear log
+                document.getElementById('clearLog').addEventListener('click', () => {
+                    document.getElementById('operationLog').innerHTML = '';
+                });
+                
+                // Tab switching
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                        
+                        tab.classList.add('active');
+                        document.getElementById(`${tab.dataset.tab}-tab`).classList.add('active');
+                    });
+                });
+                
+                // Tooltip for memory blocks
+                const memoryHeap = document.getElementById('memoryHeap');
+                const tooltip = document.getElementById('blockTooltip');
+                
+                memoryHeap.addEventListener('mousemove', (e) => {
+                    const blockElement = e.target.closest('.memory-block');
+                    if (blockElement) {
+                        const blockId = blockElement.dataset.blockId;
+                        const block = blockId ? 
+                            (this.allocations[blockId] || this.heap.find(b => b.id === blockId)) : 
+                            this.heap.find(b => b.address === parseInt(blockElement.dataset.address));
+                        
+                        if (block) {
+                            tooltip.style.opacity = '1';
+                            tooltip.style.left = `${e.pageX}px`;
+                            tooltip.style.top = `${e.pageY - 10}px`;
+                            
+                            let tooltipText = `Address: ${block.address}\nSize: ${block.size} bytes\nStatus: ${block.status}`;
+                            if (block.status === 'allocated') {
+                                tooltipText += `\nID: ${block.id}`;
+                            }
+                            
+                            tooltip.textContent = tooltipText;
+                        }
+                    } else {
+                        tooltip.style.opacity = '0';
+                    }
+                });
+                
+                memoryHeap.addEventListener('mouseleave', () => {
+                    tooltip.style.opacity = '0';
+                });
+                
+                // Click on memory blocks to select
+                memoryHeap.addEventListener('click', (e) => {
+                    const blockElement = e.target.closest('.memory-block');
+                    if (blockElement) {
+                        const blockId = blockElement.dataset.blockId;
+                        const block = blockId ? 
+                            (this.allocations[blockId] || this.heap.find(b => b.id === blockId)) : 
+                            this.heap.find(b => b.address === parseInt(blockElement.dataset.address));
+                        
+                        if (block) {
+                            this.selectBlock(block);
+                        }
+                    }
+                });
+            }
+            
+            getAllocatorName() {
+                const names = {
+                    firstFit: 'First Fit',
+                    bestFit: 'Best Fit',
+                    worstFit: 'Worst Fit'
+                };
+                return names[this.allocator] || this.allocator;
+            }
+            
+            initHeap(size) {
+                this.heapSize = size;
+                this.heap = [{
+                    address: 0,
+                    size: size,
+                    status: 'free',
+                    id: null,
+                    timestamp: null,
+                    callStack: null
+                }];
+                this.allocations = {};
+                this.allocCount = 0;
+                this.freeCount = 0;
+                this.selectedBlock = null;
+                document.getElementById('selectedBlockDetails').style.display = 'none';
+                
+                this.logOperation(`Initialized heap with ${size} bytes`, 'init');
+                this.updateUI();
+            }
+            
+            malloc(size) {
+                if (size <= 0) {
+                    this.logOperation(`Error: Invalid allocation size ${size}`, 'error');
+                    return null;
+                }
+                
+                // Find appropriate block based on allocation strategy
+                let blockIndex = -1;
+                
+                switch(this.allocator) {
+                    case 'firstFit':
+                        blockIndex = this.heap.findIndex(block => 
+                            block.status === 'free' && block.size >= size);
+                        break;
+                    case 'bestFit':
+                        blockIndex = this.heap.reduce((bestIdx, block, idx) => {
+                            if (block.status === 'free' && block.size >= size) {
+                                if (bestIdx === -1 || block.size < this.heap[bestIdx].size) {
+                                    return idx;
+                                }
+                            }
+                            return bestIdx;
+                        }, -1);
+                        break;
+                    case 'worstFit':
+                        blockIndex = this.heap.reduce((worstIdx, block, idx) => {
+                            if (block.status === 'free' && block.size >= size) {
+                                if (worstIdx === -1 || block.size > this.heap[worstIdx].size) {
+                                    return idx;
+                                }
+                            }
+                            return worstIdx;
+                        }, -1);
+                        break;
+                }
+                
+                if (blockIndex === -1) {
+                    this.logOperation(`Failed to allocate ${size} bytes (no suitable block found)`, 'error');
+                    return null;
+                }
+                
+                const freeBlock = this.heap[blockIndex];
+                const remainingSize = freeBlock.size - size;
+                
+                // Split the block if there's remaining space
+                if (remainingSize > 0) {
+                    const newBlock = {
+                        address: freeBlock.address + size,
+                        size: remainingSize,
+                        status: 'free',
+                        id: null,
+                        timestamp: null,
+                        callStack: null
+                    };
+                    this.heap.splice(blockIndex + 1, 0, newBlock);
+                }
+                
+                // Update the allocated block
+                const allocatedBlock = {
+                    address: freeBlock.address,
+                    size: size,
+                    status: 'allocated',
+                    id: `alloc-${Date.now()}`,
+                    timestamp: new Date(),
+                    callStack: this.generateCallStack()
+                };
+                
+                this.heap[blockIndex] = allocatedBlock;
+                this.allocations[allocatedBlock.id] = allocatedBlock;
+                this.allocCount++;
+                
+                this.logOperation(`Allocated ${size} bytes at address ${allocatedBlock.address} (${allocatedBlock.id})`, 'malloc');
+                this.updateUI();
+                
+                return allocatedBlock.id;
+            }
