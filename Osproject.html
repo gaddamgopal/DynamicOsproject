@@ -448,4 +448,158 @@
             display: none;
             padding: 1.5rem;
         }
+
+                
+        .tab-content.active {
+            display: block;
+        }
+        
+        .memory-details {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .details-title {
+            font-weight: 500;
+            color: var(--dark-blue);
+            margin-bottom: 1rem;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        
+        .detail-item {
+            font-size: 0.875rem;
+        }
+        
+        .detail-label {
+            color: var(--gray);
+            margin-bottom: 0.25rem;
+        }
+        
+        .detail-value {
+            font-family: 'Source Code Pro', monospace;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 992px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+                grid-template-areas: 
+                    "header"
+                    "sidebar"
+                    "main";
+            }
+            
+            aside {
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+            
+            .stats-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <span class="logo-icon">🧠</span>
+                <span>Memory Visualizer Pro</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline btn-sm">
+                    <i class="icon-docs"></i> Docs
+                </button>
+                <button class="btn btn-outline btn-sm">
+                    <i class="icon-github"></i> GitHub
+                </button>
+            </div>
+        </header>
+        
+        <aside>
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="icon-cog"></i> Heap Configuration
+                </h3>
+                <div class="form-group">
+                    <label for="heapSize">Heap Size (bytes)</label>
+                    <input type="number" id="heapSize" value="1024" min="64" max="8192" step="64">
+                </div>
+                <div class="form-group">
+                    <label for="allocator">Allocation Strategy</label>
+                    <select id="allocator">
+                        <option value="firstFit">First Fit</option>
+                        <option value="bestFit">Best Fit</option>
+                        <option value="worstFit">Worst Fit</option>
+                    </select>
+                </div>
+                <button id="initHeap" class="btn btn-primary" style="width: 100%;">
+                    Initialize Heap
+                </button>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="icon-plus"></i> Allocation
+                </h3>
+                <div class="form-group">
+                    <label for="allocSize">Size (bytes)</label>
+                    <input type="number" id="allocSize" value="128" min="1" max="1024">
+                </div>
+                <button id="mallocBtn" class="btn btn-primary" style="width: 100%;">
+                    Allocate (malloc)
+                </button>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="icon-minus"></i> Deallocation
+                </h3>
+                <div class="form-group">
+                    <label for="blockSelect">Select Block</label>
+                    <select id="blockSelect" disabled>
+                        <option value="">No blocks allocated</option>
+                    </select>
+                </div>
+                <button id="freeBtn" class="btn btn-primary" style="width: 100%;" disabled>
+                    Free (free)
+                </button>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="icon-flash"></i> Quick Actions
+                </h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <button id="quickAlloc64" class="btn btn-sm">64B</button>
+                    <button id="quickAlloc128" class="btn btn-sm">128B</button>
+                    <button id="quickAlloc256" class="btn btn-sm">256B</button>
+                    <button id="quickAlloc512" class="btn btn-sm">512B</button>
+                </div>
+                <div style="margin-top: 0.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <button id="fragmentMemory" class="btn btn-sm">Fragment</button>
+                    <button id="defragmentMemory" class="btn btn-sm">Defragment</button>
+                </div>
+            </div>
+            
         
