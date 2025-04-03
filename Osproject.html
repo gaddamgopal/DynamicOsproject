@@ -1399,5 +1399,180 @@
                 toast.style.backgroundColor = 'var(--danger)';
                 toast.style.color = 'white';
                 toast.style.padding = '12px 24px';
-
+                toast.style.borderRadius = '4px';
+                toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                toast.style.zIndex = '1000';
+                toast.style.transform = 'translateY(100px)';
+                toast.style.opacity = '0';
+                toast.style.transition = 'all 0.3s ease';
+                toast.textContent = message;
+                
+                document.body.appendChild(toast);
+                
+                // Animate in
+                setTimeout(() => {
+                    toast.style.transform = 'translateY(0)';
+                    toast.style.opacity = '1';
+                }, 10);
+                
+                // Auto-dismiss after 3 seconds
+                setTimeout(() => {
+                    toast.style.transform = 'translateY(100px)';
+                    toast.style.opacity = '0';
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 3000);
+            }
+            
+            createBasicDemo() {
+                this.initHeap(1024);
+                
+                setTimeout(() => {
+                    this.logOperation('Starting basic demo: Simple allocation pattern', 'info');
+                    
+                    setTimeout(() => this.malloc(256), 500);
+                    setTimeout(() => this.malloc(128), 1000);
+                    setTimeout(() => this.malloc(512), 1500);
+                    setTimeout(() => {
+                        const blocks = Object.keys(this.allocations);
+                        if (blocks.length > 0) {
+                            this.free(blocks[0]);
+                        }
+                    }, 2000);
+                    setTimeout(() => this.malloc(128), 2500);
+                    setTimeout(() => this.malloc(64), 3000);
+                    setTimeout(() => {
+                        const blocks = Object.keys(this.allocations);
+                        if (blocks.length > 1) {
+                            this.free(blocks[1]);
+                        }
+                    }, 3500);
+                    
+                    setTimeout(() => {
+                        this.logOperation('Basic demo completed', 'info');
+                    }, 4000);
+                }, 500);
+            }
+            
+            createFragmentationDemo() {
+                this.initHeap(1024);
+                
+                setTimeout(() => {
+                    this.logOperation('Starting fragmentation demo', 'info');
+                    
+                    // Allocate several small blocks
+                    setTimeout(() => this.malloc(128), 500);
+                    setTimeout(() => this.malloc(128), 1000);
+                    setTimeout(() => this.malloc(128), 1500);
+                    setTimeout(() => this.malloc(128), 2000);
+                    
+                    // Free some blocks to create fragmentation
+                    setTimeout(() => {
+                        const blocks = Object.keys(this.allocations);
+                        if (blocks.length > 1) {
+                            this.free(blocks[1]);
+                        }
+                        if (blocks.length > 3) {
+                            this.free(blocks[3]);
+                        }
+                    }, 2500);
+                    
+                    // Try to allocate a larger block that should fit in total free space but not contiguously
+                    setTimeout(() => this.malloc(256), 3000);
+                    
+                    // Show defragmentation
+                    setTimeout(() => this.defragmentMemory(), 3500);
+                    
+                    // Now the allocation should succeed
+                    setTimeout(() => this.malloc(256), 4000);
+                    
+                    setTimeout(() => {
+                        this.logOperation('Fragmentation demo completed', 'info');
+                    }, 4500);
+                }, 500);
+            }
+            
+            createStrategiesDemo() {
+                this.initHeap(1024);
+                
+                setTimeout(() => {
+                    this.logOperation('Starting allocation strategies demo', 'info');
+                    
+                    // First show first-fit
+                    this.allocator = 'firstFit';
+                    this.logOperation('Using First Fit allocation strategy', 'info');
+                    
+                    setTimeout(() => this.malloc(128), 500);
+                    setTimeout(() => this.malloc(256), 1000);
+                    setTimeout(() => this.malloc(128), 1500);
+                    setTimeout(() => {
+                        const blocks = Object.keys(this.allocations);
+                        if (blocks.length > 1) {
+                            this.free(blocks[1]);
+                        }
+                    }, 2000);
+                    setTimeout(() => this.malloc(64), 2500);
+                    
+                    // Reset and show best-fit
+                    setTimeout(() => {
+                        this.initHeap(1024);
+                        this.allocator = 'bestFit';
+                        this.logOperation('Using Best Fit allocation strategy', 'info');
+                    }, 3000);
+                    
+                    setTimeout(() => this.malloc(128), 3500);
+                    setTimeout(() => this.malloc(256), 4000);
+                    setTimeout(() => this.malloc(128), 4500);
+                    setTimeout(() => {
+                        const blocks = Object.keys(this.allocations);
+                        if (blocks.length > 1) {
+                            this.free(blocks[1]);
+                        }
+                    }, 5000);
+                    setTimeout(() => this.malloc(64), 5500);
+                    
+                    // Reset and show worst-fit
+                    setTimeout(() => {
+                        this.initHeap(1024);
+                        this.allocator = 'worstFit';
+                        this.logOperation('Using Worst Fit allocation strategy', 'info');
+                    }, 6000);
+                    
+                    setTimeout(() => this.malloc(128), 6500);
+                    setTimeout(() => this.malloc(256), 7000);
+                    setTimeout(() => this.malloc(128), 7500);
+                    setTimeout(() => {
+                        const blocks = Object.keys(this.allocations);
+                        if (blocks.length > 1) {
+                            this.free(blocks[1]);
+                        }
+                    }, 8000);
+                    setTimeout(() => this.malloc(64), 8500);
+                    
+                    setTimeout(() => {
+                        this.logOperation('Allocation strategies demo completed', 'info');
+                    }, 9000);
+                }, 500);
+            }
+            
+            runDemo(demoType) {
+                if (this.demos[demoType]) {
+                    this.demos[demoType]();
+                } else {
+                    this.showErrorToast('Unknown demo type');
+                }
+            }
+        }
+        
+        // Initialize the memory system when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const memorySystem = new MemorySystem();
+            
+            // Make available in console for debugging
+            window.memorySystem = memorySystem;
+        });
+    </script>
+</body>
+</html>
 
