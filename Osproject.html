@@ -602,4 +602,151 @@
                 </div>
             </div>
             
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="icon-book"></i> Tutorial
+                </h3>
+                <p style="font-size: 0.875rem; margin-bottom: 1rem;">
+                    Use the controls to simulate memory operations. Click on memory blocks for details.
+                </p>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="demoBasic" name="demo" value="basic" checked>
+                        <label for="demoBasic">Basic Demo</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="demoFragmentation" name="demo" value="fragmentation">
+                        <label for="demoFragmentation">Fragmentation</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="demoStrategies" name="demo" value="strategies">
+                        <label for="demoStrategies">Allocation Strategies</label>
+                    </div>
+                </div>
+                <button id="runDemo" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+                    Run Demo
+                </button>
+            </div>
+        </aside>
+        
+        <main>
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-title">Memory Usage</div>
+                    <div class="stat-value" id="usedPercent">0%</div>
+                    <div class="stat-detail"><span id="usedMemory">0</span> / <span id="totalMemory">1024</span> bytes</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="usageProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Fragmentation</div>
+                    <div class="stat-value" id="fragmentation">0%</div>
+                    <div class="stat-detail" id="fragmentationDetail">No fragmentation</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="fragmentationProgress" style="width: 0%; background-color: var(--danger);"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Allocations</div>
+                    <div class="stat-value" id="allocCount">0</div>
+                    <div class="stat-detail">Active: <span id="activeAllocs">0</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Memory Blocks</div>
+                    <div class="stat-value" id="blockCount">1</div>
+                    <div class="stat-detail">Free: <span id="freeBlocks">1</span></div>
+                </div>
+            </div>
+            
+            <div class="memory-container">
+                <div class="memory-header">
+                    <h3 class="memory-title">Heap Memory Visualization</h3>
+                    <div class="memory-actions">
+                        <button id="zoomIn" class="btn btn-icon btn-sm">
+                            <i class="icon-zoom-in"></i>
+                        </button>
+                        <button id="zoomOut" class="btn btn-icon btn-sm">
+                            <i class="icon-zoom-out"></i>
+                        </button>
+                        <button id="resetView" class="btn btn-icon btn-sm">
+                            <i class="icon-reset"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="tabs">
+                    <div class="tab active" data-tab="visual">Visual</div>
+                    <div class="tab" data-tab="list">List View</div>
+                </div>
+                <div class="tab-content active" id="visual-tab">
+                    <div class="memory-heap" id="memoryHeap"></div>
+                    <div class="memory-legend">
+                        <div class="legend-item">
+                            <div class="legend-color allocated"></div>
+                            <span>Allocated</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color free"></div>
+                            <span>Free</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color fragmented"></div>
+                            <span>Fragmented</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-content" id="list-tab">
+                    <div class="memory-details">
+                        <h4 class="details-title">Memory Block Details</h4>
+                        <div id="blockList">
+                            <p>No memory blocks allocated yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="memory-details" id="selectedBlockDetails" style="display: none;">
+                <h4 class="details-title">Selected Block</h4>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Address</div>
+                        <div class="detail-value" id="detail-address">0x0000</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Size</div>
+                        <div class="detail-value" id="detail-size">0 bytes</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value" id="detail-status">Free</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Block ID</div>
+                        <div class="detail-value" id="detail-id">N/A</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Allocated At</div>
+                        <div class="detail-value" id="detail-time">N/A</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Call Stack</div>
+                        <div class="detail-value" id="detail-stack">N/A</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="log-container">
+                <div class="log-header">
+                    <h3 class="memory-title">Operation Log</h3>
+                    <div class="memory-actions">
+                        <button id="clearLog" class="btn btn-icon btn-sm">
+                            <i class="icon-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="log-content" id="operationLog">
+                    <div class="log-entry">
+                        <div class="log-time">12:00:00</div>
+                        <div class="log-message log-init">Heap initialized with 1024 bytes</div>
+                    </div>
         
