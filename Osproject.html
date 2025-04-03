@@ -1003,3 +1003,202 @@
                 
                 return allocatedBlock.id;
             }
+            
+            free(blockId) {
+                if (!this.allocations[blockId]) {
+                    this.logOperation(`Error: Attempt to free invalid block ${blockId}`, 'error');
+                    return false;
+                }
+                
+                const blockIndex = this.heap.findIndex(b => b.id === blockId);
+                if (blockIndex === -1) return false;
+                
+                this.heap[blockIndex].status = 'free';
+                this.heap[blockIndex].id = null;
+                this.heap[blockIndex].timestamp = null;
+                this.heap[blockIndex].callStack = null;
+                delete this.allocations[blockId];
+                this.freeCount++;
+                
+                // Coalesce adjacent free blocks
+                this.coalesceFreeBlocks();
+                
+                this.logOperation(`Freed block ${blockId}`, 'free');
+                this.updateUI();
+                
+                // If we freed the selected block, clear selection
+                if (this.selectedBlock && this.selectedBlock.id === blockId) {
+                    this.selectedBlock = null;
+                    document.getElementById('selectedBlockDetails').style.display = 'none';
+                }
+                
+                return true;
+            }
+            
+            coalesceFreeBlocks() {
+                for (let i = 0; i < this.heap.length - 1; i++) {
+                    const current = this.heap[i];
+                    const next = this.heap[i + 1];
+                    
+                    if (current.status === 'free' && next.status === 'free') {
+                        current.size += next.size;
+                        this.heap.splice(i + 1, 1);
+                        i--; // Check again in case more adjacent blocks
+                    }
+                }
+            }
+            
+            calculateFragmentation() {
+                const freeBlocks = this.heap.filter(b => b.status === 'free');
+                if (freeBlocks.length <= 1) return 0;
+                
+                const totalFree = freeBlocks.reduce((sum, b) => sum + b.size, 0);
+                const largestFree = Math.max(...freeBlocks.map(b => b.size));
+                
+                return ((totalFree - largestFree) / totalFree) * 100;
+            }
+            
+            fragmentMemory() {
+                // Artificially fragment memory by allocating small blocks throughout
+                const freeBlocks = this.heap.filter(b => b.status === 'free');
+                if (freeBlocks.length === 0) {
+                    this.showErrorToast('No free space to fragment');
+                    return;
+                }
+                
+                // Sort free blocks by size (descending)
+                freeBlocks.sort((a, b) => b.size - a.size);
+                
+                // Fragment the largest free blocks
+                let fragmented = false;
+                for (const block of freeBlocks) {
+                    if (block.size >= 128) {
+                        // Allocate small blocks in this free space
+                        const blockSize = Math.min(32, Math.floor(block.size / 4));
+                        const blocksToAllocate = Math.min(3, Math.floor(block.size / blockSize) - 1);
+                        
+                        for (let i = 0; i < blocksToAllocate; i++) {
+                            this.malloc(blockSize);
+                            fragmented = true;
+                        }
+                    }
+                }
+                
+                if (fragmented) {
+                    this.logOperation('Artificially fragmented memory', 'info');
+                } else {
+                    this.showErrorToast('Not enough contiguous space to fragment');
+                }
+            }
+            
+            defragmentMemory() {
+                // Simulate defragmentation by compacting allocated blocks
+                const allocatedBlocks = this.heap.filter(b => b.status === 'allocated');
+                if (allocatedBlocks.length === 0) {
+                    this.showErrorToast('No allocated blocks to defragment');
+                    return;
+                }
+                
+                // Sort allocated blocks by address
+                allocatedBlocks.sort((a, b) => a.address - b.address);
+                
+                // Create new compacted heap
+                let currentAddress = 0;
+                const newHeap = [];
+                const allocationMap = {};
+                
+                for (const block of allocatedBlocks) {
+                    const newBlock = {
+                        ...block,
+                        address: currentAddress
+                    };
+                    newHeap.push(newBlock);
+                    allocationMap[block.id] = newBlock;
+                    currentAddress += block.size;
+                    
+                    // Add free space if there's a gap
+                    if (block.address > currentAddress) {
+                        newHeap.push({
+                            address: currentAddress,
+                            size: block.address - currentAddress,
+                            status: 'free',
+                            id: null,
+                            timestamp: null,
+                            callStack: null
+                        });
+                        currentAddress = block.address + block.size;
+                    }
+                }
+                
+                // Add remaining free space at the end
+                if (currentAddress < this.heapSize) {
+                    newHeap.push({
+                        address: currentAddress,
+                        size: this.heapSize - currentAddress,
+                        status: 'free',
+                        id: null,
+                        timestamp: null,
+                        callStack: null
+                    });
+                }
+                
+                this.heap = newHeap;
+                
+                // Update allocations map with new addresses
+                for (const id in this.allocations) {
+                    if (allocationMap[id]) {
+                        this.allocations[id] = allocationMap[id];
+                    }
+                }
+                
+                this.logOperation('Defragmented memory by compacting allocated blocks', 'info');
+                this.updateUI();
+            }
+            
+            selectBlock(block) {
+                this.selectedBlock = block;
+                const detailsEl = document.getElementById('selectedBlockDetails');
+                detailsEl.style.display = 'block';
+                
+                document.getElementById('detail-address').textContent = `0x${block.address.toString(16).padStart(4, '0')}`;
+                document.getElementById('detail-size').textContent = `${block.size} bytes`;
+                document.getElementById('detail-status').textContent = block.status.charAt(0).toUpperCase() + block.status.slice(1);
+                document.getElementById('detail-id').textContent = block.id || 'N/A';
+                document.getElementById('detail-time').textContent = block.timestamp ? block.timestamp.toLocaleTimeString() : 'N/A';
+                document.getElementById('detail-stack').textContent = block.callStack ? block.callStack.join('\n') : 'N/A';
+                
+                // Highlight the block in the visualization
+                this.highlightBlock(block.id || block.address);
+            }
+            
+            highlightBlock(identifier) {
+                // Remove previous highlights
+                document.querySelectorAll('.block-highlight').forEach(el => el.remove());
+                
+                // Find the block element
+                let blockElement;
+                if (typeof identifier === 'string') {
+                    // Block ID
+                    blockElement = document.querySelector(`.memory-block[data-block-id="${identifier}"]`);
+                } else {
+                    // Address
+                    blockElement = document.querySelector(`.memory-block[data-address="${identifier}"]`);
+                }
+                
+                if (blockElement) {
+                    // Add highlight element
+                    const highlight = document.createElement('div');
+                    highlight.className = 'block-highlight';
+                    blockElement.appendChild(highlight);
+                    
+                    // Scroll to the block
+                    blockElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                    
+                    // Add temporary highlight animation
+                    blockElement.classList.add('highlight');
+                    setTimeout(() => {
+                        blockElement.classList.remove('highlight');
+                    }, 1500);
+                }
+            }
+
